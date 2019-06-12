@@ -1,0 +1,486 @@
+{
+    "$connections": {
+        "value": {
+            "dynamicscrmonline": {
+                "connectionId": "/subscriptions/e14a63f2-5f8d-4981-91f8-1adf8015d23f/resourceGroups/RG-EK-NE-CRM/providers/Microsoft.Web/connections/dynamicscrmonline",
+                "connectionName": "dynamicscrmonline",
+                "id": "/subscriptions/e14a63f2-5f8d-4981-91f8-1adf8015d23f/providers/Microsoft.Web/locations/northeurope/managedApis/dynamicscrmonline"
+            }
+        }
+    },
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition:_Siirron_tila_=_Lähetä": {
+                "actions": {},
+                "else": {
+                    "actions": {
+                        "Terminate": {
+                            "inputs": {
+                                "runStatus": "Cancelled"
+                            },
+                            "runAfter": {},
+                            "type": "Terminate"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@triggerBody()?['aes_siirrontila']",
+                                277350001
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "If"
+            },
+            "Create_Marketing_List_to_Postiviidakko": {
+                "inputs": {
+                    "body": {
+                        "content": "@{variables('marketinglist-contentjson')}",
+                        "endpoint": "@{variables('endpoint-path-createMailingList')}",
+                        "realm": "@{variables('realm')}",
+                        "secretkey": "@{variables('secretkey')}",
+                        "userid": "@{variables('user')}"
+                    },
+                    "method": "POST",
+                    "uri": "https://postiviidakko.azurewebsites.net/api/createlist"
+                },
+                "runAfter": {
+                    "init_marketinglist-contentjson": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "For_each": {
+                "actions": {
+                    "Parse_listmember_JSON": {
+                        "inputs": {
+                            "content": "@items('For_each')",
+                            "schema": {
+                                "properties": {
+                                    "@@odata.etag": {
+                                        "type": "string"
+                                    },
+                                    "ItemInternalId": {
+                                        "type": "string"
+                                    },
+                                    "_createdby_type": {
+                                        "type": "string"
+                                    },
+                                    "_createdby_value": {
+                                        "type": "string"
+                                    },
+                                    "_createdonbehalfby_value": {},
+                                    "_entityid_type": {
+                                        "type": "string"
+                                    },
+                                    "_entityid_value": {
+                                        "type": "string"
+                                    },
+                                    "_listid_type": {
+                                        "type": "string"
+                                    },
+                                    "_listid_value": {
+                                        "type": "string"
+                                    },
+                                    "_modifiedby_type": {
+                                        "type": "string"
+                                    },
+                                    "_modifiedby_value": {
+                                        "type": "string"
+                                    },
+                                    "_modifiedonbehalfby_value": {},
+                                    "createdon": {
+                                        "type": "string"
+                                    },
+                                    "entitytype": {
+                                        "type": "string"
+                                    },
+                                    "importsequencenumber": {},
+                                    "listmemberid": {
+                                        "type": "string"
+                                    },
+                                    "modifiedon": {
+                                        "type": "string"
+                                    },
+                                    "name": {},
+                                    "overriddencreatedon": {},
+                                    "timezoneruleversionnumber": {},
+                                    "utcconversiontimezonecode": {},
+                                    "versionnumber": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {},
+                        "type": "ParseJson"
+                    },
+                    "Switch_(Account_or_Contact)": {
+                        "cases": {
+                            "Account": {
+                                "actions": {
+                                    "Get_account": {
+                                        "inputs": {
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['dynamicscrmonline']['connectionId']"
+                                                }
+                                            },
+                                            "method": "get",
+                                            "path": "/datasets/@{encodeURIComponent(encodeURIComponent('orgde110754NEW.crm4'))}/tables/@{encodeURIComponent(encodeURIComponent('accounts'))}/items/@{encodeURIComponent(encodeURIComponent(body('Parse_listmember_JSON')?['_entityid_value']))}"
+                                        },
+                                        "runAfter": {},
+                                        "type": "ApiConnection"
+                                    },
+                                    "HTTP": {
+                                        "inputs": {
+                                            "body": {
+                                                "createcontent": "{\"email\": \"@{body('Get_account')?['emailaddress1']}\",\"sms\":null,\"props\":[],\"autoconfirm\":true,\"reason\":\"API Created\",\"origin\":\"api\"}",
+                                                "createendpoint": "@{variables('endpoint-path-createRecipient')}",
+                                                "email": "@{body('Get_account')?['emailaddress1']}",
+                                                "joinendpoint": "@{variables('endpoint-path-joinMailingList')}",
+                                                "listid": "@{body('Create_Marketing_List_to_Postiviidakko')}",
+                                                "realm": "@{variables('realm')}",
+                                                "searchcontent": "{\"email\":\"@{body('Get_account')?['emailaddress1']}\"}",
+                                                "searchendpoint": "@{variables('endpoint-path-getRecipientByEmail')}",
+                                                "secretkey": "@{variables('secretkey')}",
+                                                "userid": "@{variables('user')}"
+                                            },
+                                            "method": "POST",
+                                            "uri": "https://postiviidakko.azurewebsites.net/api/createrecipientandjoin"
+                                        },
+                                        "runAfter": {
+                                            "Get_account": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Http"
+                                    }
+                                },
+                                "case": 1
+                            },
+                            "Contact": {
+                                "actions": {
+                                    "Get_contact": {
+                                        "inputs": {
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['dynamicscrmonline']['connectionId']"
+                                                }
+                                            },
+                                            "method": "get",
+                                            "path": "/datasets/@{encodeURIComponent(encodeURIComponent('orgde110754NEW.crm4'))}/tables/@{encodeURIComponent(encodeURIComponent('contacts'))}/items/@{encodeURIComponent(encodeURIComponent(body('Parse_listmember_JSON')?['_entityid_value']))}"
+                                        },
+                                        "runAfter": {},
+                                        "type": "ApiConnection"
+                                    },
+                                    "HTTP_2": {
+                                        "inputs": {
+                                            "body": {
+                                                "createcontent": "{\"email\": \"@{body('Get_contact')?['emailaddress1']}\",\"sms\":null,\"props\":[],\"autoconfirm\":true,\"reason\":\"API Created\",\"origin\":\"api\"}",
+                                                "createendpoint": "@{variables('endpoint-path-createRecipient')}",
+                                                "email": "@{body('Get_contact')?['emailaddress1']}",
+                                                "joinendpoint": "@{variables('endpoint-path-joinMailingList')}",
+                                                "listid": "@{body('Create_Marketing_List_to_Postiviidakko')}",
+                                                "realm": "@{variables('realm')}",
+                                                "searchcontent": "{\"email\":\"@{body('Get_contact')?['emailaddress1']}\"}",
+                                                "searchendpoint": "@{variables('endpoint-path-getRecipientByEmail')}",
+                                                "secretkey": "@{variables('secretkey')}",
+                                                "userid": "@{variables('user')}"
+                                            },
+                                            "method": "POST",
+                                            "uri": "https://postiviidakko.azurewebsites.net/api/createrecipientandjoin"
+                                        },
+                                        "runAfter": {
+                                            "Get_contact": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Http"
+                                    }
+                                },
+                                "case": 2
+                            }
+                        },
+                        "default": {
+                            "actions": {}
+                        },
+                        "expression": "@variables('targetedAt')",
+                        "runAfter": {
+                            "Parse_listmember_JSON": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Switch"
+                    }
+                },
+                "foreach": "@body('Get_list_members')?['value']",
+                "runAfter": {
+                    "Get_list_members": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "concurrency": {
+                        "repetitions": 2
+                    }
+                },
+                "type": "Foreach"
+            },
+            "Get_list_members": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['dynamicscrmonline']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('orgde110754NEW.crm4'))}/tables/@{encodeURIComponent(encodeURIComponent('listmembers'))}/items",
+                    "queries": {
+                        "$filter": "_listid_value eq '@{triggerBody()?['listid']}'"
+                    }
+                },
+                "runAfter": {
+                    "Create_Marketing_List_to_Postiviidakko": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "paginationPolicy": {
+                        "minimumItemCount": 5000
+                    }
+                },
+                "type": "ApiConnection"
+            },
+            "Update_a_record": {
+                "inputs": {
+                    "body": {
+                        "_aes_siirrontila_label": "Lähetetty",
+                        "_createdfromcode_label": "",
+                        "_ownerid_type": "",
+                        "_statecode_label": "",
+                        "_statuscode_label": "",
+                        "aes_siirretty": "@{utcNow()}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['dynamicscrmonline']['connectionId']"
+                        }
+                    },
+                    "method": "patch",
+                    "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('orgde110754NEW.crm4'))}/tables/@{encodeURIComponent(encodeURIComponent('lists'))}/items/@{encodeURIComponent(encodeURIComponent(triggerBody()?['listid']))}"
+                },
+                "runAfter": {
+                    "For_each": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "init_endpoint-base": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpoint-base",
+                            "type": "String",
+                            "value": "https://rest.lianamailer.com"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_endpoint-path-getRecipientByEmail": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_endpoint-path-createMailingList": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpoint-path-createMailingList",
+                            "type": "String",
+                            "value": "/api/v1/createMailingList"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_secret": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_endpoint-path-createRecipient": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpoint-path-createRecipient",
+                            "type": "String",
+                            "value": "/api/v1/createRecipient"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_endpoint-path-createMailingList": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_endpoint-path-getRecipientByEmail": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpoint-path-getRecipientByEmail",
+                            "type": "String",
+                            "value": "/api/v1/getRecipientByEmail"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_endpoint-path-joinMailingList": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_endpoint-path-joinMailingList": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpoint-path-joinMailingList",
+                            "type": "String",
+                            "value": "/api/v1/joinMailingList"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_endpoint-path-createRecipient": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_marketinglist-contentjson": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "marketinglist-contentjson",
+                            "type": "String",
+                            "value": "{\n\"name\": \"@{triggerBody()?['listname']}\",\n\"desc\": \"@{triggerBody()?['description']}\",\n\"subs\": true\n}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_user": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_realm": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "realm",
+                            "type": "String",
+                            "value": "EUR"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_endpoint-base": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_secret": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "secretkey",
+                            "type": "String",
+                            "value": "4cd28a896516f054372ad3c17531293fee09a378df27db8728747a816d5e57cd"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_targetedAt": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_targetedAt": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "targetedAt",
+                            "type": "Integer",
+                            "value": "@triggerBody()?['createdfromcode']"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Condition:_Siirron_tila_=_Lähetä": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "init_user": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "user",
+                            "type": "String",
+                            "value": "16561"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "init_realm": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "When_a_marketing_list_is_updated": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['dynamicscrmonline']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('orgde110754NEW.crm4'))}/tables/@{encodeURIComponent(encodeURIComponent('lists'))}/onupdateditems"
+                },
+                "recurrence": {
+                    "frequency": "Minute",
+                    "interval": 1
+                },
+                "splitOn": "@triggerBody()?['value']",
+                "type": "ApiConnection"
+            }
+        }
+    }
+}
